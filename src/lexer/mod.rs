@@ -35,14 +35,6 @@ pub fn is_id_continue(c: char) -> bool {
     is_id_start(c) || matches!(c, '0'..='9')
 }
 
-pub fn is_ident(string: &str) -> bool {
-    let mut chars = string.chars();
-    if let Some(start) = chars.next() {
-        is_id_start(start) && chars.all(is_id_continue)
-    } else {
-        false
-    }
-}
 
 impl Cursor<'_> {
     fn bump_token(&mut self) -> Token {
@@ -125,15 +117,6 @@ impl Cursor<'_> {
             }
         }
         has_digits
-    }
-
-    fn eat_identifier(&mut self) {
-        if !is_id_start(self.first()) {
-            return;
-        }
-        self.bump();
-
-        self.eat_while(is_id_continue);
     }
 
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {

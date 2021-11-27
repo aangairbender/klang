@@ -12,7 +12,9 @@ fn main() {
     let mut interpreter = interpreter::Interpreter::new();
     loop {
         let mut input = String::new();
-        std::io::stdin().read_line(&mut input);
+        if std::io::stdin().read_line(&mut input).is_err() {
+            break;
+        }
     
         let mut tokens2 = lexer::tokenize(input.as_str()).collect::<Vec<_>>();
         tokens2.push(Token::new(TokenKind::Eof, 0));
