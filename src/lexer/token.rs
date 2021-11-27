@@ -1,18 +1,18 @@
 use super::token_kind::TokenKind;
 
+#[derive(Debug)]
 pub struct Token {
     pub kind: TokenKind,
-    pub len: usize
+    pub len: usize,
+    pub data: Option<String>,
 }
 
 impl Token {
     pub fn new(kind: TokenKind, len: usize) -> Self {
-        Self { kind, len }
+        Self { kind, len, data: None }
     }
-}
 
-impl std::fmt::Display for Token {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[{:?}, {}]", self.kind, self.len)
+    pub fn new_with_data(kind: TokenKind, len: usize, data: String) -> Self {
+        Self { kind, len, data: Some(data) }
     }
 }

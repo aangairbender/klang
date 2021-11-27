@@ -1,27 +1,28 @@
 use super::literal_kind::LiteralKind;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TokenKind {
+    /// "("
     OpenParen,
+    /// ")"
     CloseParen,
-    OpenBracket,
-    CloseBracket,
-    OpenBrace,
-    CloseBrace,
-    Comma,
-    Dot,
+    /// "-"
+    Minus,
+    /// "+"
+    Plus,
+    /// "*"
+    Star,
+    /// "/"
+    Slash,
 
-    Operator,
+    Identifier,
 
     // literals
     Literal { kind: LiteralKind },
 
     Whitespace,
 
-    Ident,
-
-    // keywords
-    // empty for now
+    Eof,
 
     Unknown,
 }

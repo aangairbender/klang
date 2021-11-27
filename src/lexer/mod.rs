@@ -1,12 +1,12 @@
 use self::{cursor::Cursor, literal_kind::LiteralKind, token::Token, token_kind::TokenKind};
 
 mod cursor;
-mod literal_kind;
-mod token_kind;
-mod token;
+pub mod literal_kind;
+pub mod token_kind;
+pub mod token;
 
 pub fn first_token(input: &str) -> Token {
-    Cursor::new(input).advance_token()
+    Cursor::new(input).bump_token()
 }
 
 pub fn tokenize(mut input: &str) -> impl Iterator<Item = Token> + '_ {
@@ -28,14 +28,11 @@ pub fn is_whitespace(c: char) -> bool {
 }
 
 pub fn is_id_start(c: char) -> bool {
-    c == '_'
-        || ('a'..='z').contains(&c)
-        || ('A'..='Z').contains(&c)
+    matches!(c, '_' | 'a'..='z' | 'A'..='Z')
 }
 
 pub fn is_id_continue(c: char) -> bool {
-    is_id_start(c)
-        || ('0'..='9').contains(&c)
+    is_id_start(c) || matches!(c, '0'..='9')
 }
 
 pub fn is_ident(string: &str) -> bool {
@@ -47,49 +44,41 @@ pub fn is_ident(string: &str) -> bool {
     }
 }
 
-pub fn is_operator(c: char) -> bool {
-    matches!(c,
-        '+' | '-' | '*' | '/' |
-        '!' | '@' | '#' | '$' |
-        '%' | '^' | '&' | '~' |
-        '?' | ':' | '>' | '<' |
-        '|' | '#' | '='
-    )
-}
-
-
 impl Cursor<'_> {
-    fn advance_token(&mut self) -> Token {
-        let first_char = self.advance().unwrap();
+    fn bump_token(&mut self) -> Token {
+        let first_char = self.bump().unwrap();
+        let mut data = None;
         let token_kind = match first_char {
             // whitespace
             c if is_whitespace(c) => self.whitespace(),
 
             // identifier
-            c if is_id_start(c) => self.ident(),
+            c if is_id_start(c) => self.identifier(),
 
             // numeric literal
             c @ '0'..='9' => {
-                let literal_kind = self.number();
+                let mut str = String::new();
+                str.push(c);
+                let literal_kind = self.number(&mut str);
+                data = Some(str);
                 TokenKind::Literal { kind: literal_kind }
             }
-
-            // operator
-            c if is_operator(c) => self.operator(),
 
             // One-symbol tokens
             '(' => TokenKind::OpenParen,
             ')' => TokenKind::CloseParen,
-            '[' => TokenKind::OpenBracket,
-            ']' => TokenKind::CloseBracket,
-            '{' => TokenKind::OpenBrace,
-            '}' => TokenKind::CloseBrace,
-            ',' => TokenKind::Comma,
-            '.' => TokenKind::Dot,
+            '-' => TokenKind::Minus,
+            '+' => TokenKind::Plus,
+            '*' => TokenKind::Star,
+            '/' => TokenKind::Slash,
 
             _ => TokenKind::Unknown,
         };
-        Token::new(token_kind, self.len_consumed())
+
+        match data {
+            Some(data) => Token::new_with_data(token_kind, self.len_consumed(), data),
+            None => Token::new(token_kind, self.len_consumed())
+        }
     }
 
     fn whitespace(&mut self) -> TokenKind {
@@ -97,44 +86,45 @@ impl Cursor<'_> {
         TokenKind::Whitespace
     }
 
-    fn ident(&mut self) -> TokenKind {
+    fn identifier(&mut self) -> TokenKind {
         self.eat_while(is_id_continue);
-        TokenKind::Ident
+        TokenKind::Identifier
     }
 
-    fn number(&mut self) -> LiteralKind {
-        self.eat_decimal_digits();
-        LiteralKind::Int
+    fn number(&mut self, s: &mut String) -> LiteralKind {
+        self.eat_decimal_digits(s);
+        LiteralKind::Number
     }
 
-    fn operator(&mut self) -> TokenKind {
-        self.eat_while(is_operator);
-        TokenKind::Operator
-    }
-
-
-    fn eat_decimal_digits(&mut self) {
+    fn eat_decimal_digits(&mut self, s: &mut String) -> bool {
+        let mut has_digits = false;
         loop {
-            if matches!(self.first(), '_' | '0'..='9') {
-                self.advance();
-            } else {
-                break;
+            let c = self.first();
+            match c {
+                '_' => { self.bump(); },
+                '0'..='9' => {
+                    has_digits = true;
+                    s.push(c);
+                    self.bump();
+                }
+                _ => break
             }
         }
+        has_digits
     }
 
     fn eat_identifier(&mut self) {
         if !is_id_start(self.first()) {
             return;
         }
-        self.advance();
+        self.bump();
 
         self.eat_while(is_id_continue);
     }
 
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         while predicate(self.first()) && !self.is_eof() {
-            self.advance();
+            self.bump();
         }
     }
 }

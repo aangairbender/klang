@@ -35,7 +35,7 @@ impl<'a> Cursor<'a> {
         self.initial_len - self.chars.as_str().len()
     }
 
-    pub fn advance(&mut self) -> Option<char> {
+    pub fn bump(&mut self) -> Option<char> {
         self.chars.next()
     }
 }
