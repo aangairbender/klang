@@ -1,7 +1,6 @@
 use crate::lexer::literal_kind::LiteralKind;
 use crate::lexer::token::Token;
-use crate::ast::ast_node::AstNode;
-use crate::ast::nodes::*;
+use crate::ast::*;
 use crate::lexer::token_kind::TokenKind;
 
 pub struct Parser {
@@ -14,8 +13,8 @@ impl Parser {
         Parser { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Box<dyn AstNode<Output = i32>> {
-        self.expression()
+    pub fn parse(&mut self) -> Stmt {
+        self.statement()
     }
 
     fn match_t(&mut self, kinds: &[TokenKind]) -> bool {
@@ -58,82 +57,81 @@ impl Parser {
         panic!("{}", msg);
     }
 
-    // expression = term
-    fn expression(&mut self) -> Box<dyn AstNode<Output = i32>> {
-        self.term()
+    fn statement(&mut self) -> Stmt {
+        if self.match_t(&[TokenKind::Let]) {
+            self.consume(&TokenKind::Identifier, "identifier expected");
+            let id = self.name();
+            self.consume(&TokenKind::Eq, "eq expected");
+            let e = self.expression();
+            Stmt::Let(id, e)
+        } else {
+            Stmt::Expr(self.expression())
+        }
     }
 
-    // term = factor ( ("-" | "+") factor )*
-    fn term(&mut self) -> Box<dyn AstNode<Output = i32>> {
-        let mut expr = self.factor();
+    fn name(&mut self) -> String {
+        self.previous().data.as_ref().unwrap().clone()
+    }
 
-        while self.match_t(&[TokenKind::Minus, TokenKind::Plus]) {
+    // expression = factor ( ("-" | "+") expression )*
+    fn expression(&mut self) -> Expr {
+        let expr = self.factor();
+
+        if self.match_t(&[TokenKind::Minus, TokenKind::Plus]) {
+            let operator_kind = self.previous().kind;
+            let right = self.expression();
+            match operator_kind {
+                TokenKind::Plus => Expr::Add(Box::new(expr), Box::new(right)),
+                TokenKind::Minus => Expr::Sub(Box::new(expr), Box::new(right)),
+                _ => panic!("smth went wrong term")
+            }
+        } else {
+            Expr::Factor(expr)
+        }
+    }
+
+    // factor = unary ( ("/" | "*") factor )*
+    fn factor(&mut self) -> Factor {
+        let expr = self.unary();
+
+        if self.match_t(&[TokenKind::Star, TokenKind::Slash]) {
             let operator_kind = self.previous().kind;
             let right = self.factor();
-            expr = Box::new(BinOpNode::new(
-                match operator_kind {
-                    TokenKind::Plus => BinOp::Plus,
-                    TokenKind::Minus => BinOp::Minus,
-                    _ => panic!("smth went wrong term")
-                },
-                expr,
-                right
-            ));
+            match operator_kind {
+                TokenKind::Star => Factor::Multiply(Box::new(expr), Box::new(right)),
+                TokenKind::Slash => Factor::Divide(Box::new(expr), Box::new(right)),
+                _ => panic!("smth went wrong factor")
+            }
+        } else {
+            Factor::Unary(expr)
         }
-
-        expr
-    }
-
-    // factor = unary ( ("/" | "*") unary )*
-    fn factor(&mut self) -> Box<dyn AstNode<Output = i32>> {
-        let mut expr = self.unary();
-
-        while self.match_t(&[TokenKind::Star, TokenKind::Slash]) {
-            let operator_kind = self.previous().kind;
-            let right = self.unary();
-            expr = Box::new(BinOpNode::new(
-                match operator_kind {
-                    TokenKind::Star => BinOp::Multiply,
-                    TokenKind::Slash => BinOp::Divide,
-                    _ => panic!("smth went wrong factor")
-                },
-                expr,
-                right
-            ));
-        }
-
-        expr
     }
 
     // unary = "-" unary | number
-    fn unary(&mut self) -> Box<dyn AstNode<Output = i32>> {
+    fn unary(&mut self) -> Unary {
         if self.match_t(&[TokenKind::Minus]) {
-            let operator = self.previous();
+            let operator_kind = self.previous().kind;
             let right = self.unary();
-            return Box::new(UnaryOpNode::new(
-                UnaryOp::Minus,
-                right
-            ));
+            match operator_kind {
+               TokenKind::Minus => Unary::Minus(Box::new(right)),
+               _ => panic!("wtf unary")
+            }
+        } else {
+            Unary::Primary(self.primary())
         }
-
-        self.primary()
     }
 
-    fn primary(&mut self) -> Box<dyn AstNode<Output = i32>> {
+    fn primary(&mut self) -> Primary {
         if self.match_t(&[TokenKind::Literal { kind: LiteralKind::Number }]) {
-            return Box::new(NumberNode(self.previous().data.as_ref().unwrap().parse().unwrap()))
-        }
-
-        if self.match_t(&[TokenKind::Identifier]) {
-            return Box::new(IdentifierNode(*self.previous().data.as_ref().unwrap()))
-        }
-
-        if self.match_t(&[TokenKind::OpenParen]) {
+            Primary::Literal(self.previous().data.as_ref().unwrap().parse().unwrap())
+        } else if self.match_t(&[TokenKind::Identifier]) {
+            Primary::Identifier(self.name())
+        } else if self.match_t(&[TokenKind::OpenParen]) {
             let expr = self.expression();
             self.consume(&TokenKind::CloseParen, "Expect ')' after expression");
-            return expr;
+            Primary::Grouping(Box::new(expr))
+        } else {
+            panic!("unexpected primary")
         }
-
-        panic!("unexpected primary")
     }
 }

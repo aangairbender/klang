@@ -14,12 +14,18 @@ pub enum TokenKind {
     Star,
     /// "/"
     Slash,
+    /// "="
+    Eq,
 
     Identifier,
 
     // literals
     Literal { kind: LiteralKind },
 
+    // keywords
+    Let, 
+
+    // other
     Whitespace,
 
     Eof,

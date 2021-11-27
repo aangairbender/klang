@@ -1,11 +1,15 @@
 use lexer::{token::Token, token_kind::TokenKind};
 
+use crate::visit::Visitor;
+
 mod lexer;
 mod ast;
 mod parser;
 mod visit;
+mod interpreter;
 
 fn main() {
+    let mut interpreter = interpreter::Interpreter::new();
     loop {
         let mut input = String::new();
         std::io::stdin().read_line(&mut input);
@@ -19,12 +23,12 @@ fn main() {
             }
             tokens.push(t);
         }
-        for t in &tokens {
-            eprintln!("{:?}", t);
-        }
+        // for t in &tokens {
+        //     eprintln!("{:?}", t);
+        // }
         let mut parser = parser::Parser::new(tokens);
         let root = parser.parse();
-        let eval_res = root.eval();
+        let eval_res = interpreter.visit_stmt(&root);
         eprintln!("eval: {}", eval_res);
     }
 }

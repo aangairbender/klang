@@ -49,11 +49,24 @@ impl Cursor<'_> {
         let first_char = self.bump().unwrap();
         let mut data = None;
         let token_kind = match first_char {
+            // keywords
+            c if c == 'l' && self.first() == 'e' && self.second() == 't' => {
+                self.bump();
+                self.bump();
+                TokenKind::Let
+            },
+
             // whitespace
             c if is_whitespace(c) => self.whitespace(),
 
             // identifier
-            c if is_id_start(c) => self.identifier(),
+            c if is_id_start(c) => {
+                let mut str = String::new();
+                str.push(c);
+                let t = self.identifier(&mut str);
+                data = Some(str);
+                t
+            },
 
             // numeric literal
             c @ '0'..='9' => {
@@ -71,6 +84,7 @@ impl Cursor<'_> {
             '+' => TokenKind::Plus,
             '*' => TokenKind::Star,
             '/' => TokenKind::Slash,
+            '=' => TokenKind::Eq,
 
             _ => TokenKind::Unknown,
         };
@@ -86,8 +100,8 @@ impl Cursor<'_> {
         TokenKind::Whitespace
     }
 
-    fn identifier(&mut self) -> TokenKind {
-        self.eat_while(is_id_continue);
+    fn identifier(&mut self, s: &mut String) -> TokenKind {
+        self.eat_while_saving(is_id_continue, s);
         TokenKind::Identifier
     }
 
@@ -124,6 +138,13 @@ impl Cursor<'_> {
 
     fn eat_while(&mut self, mut predicate: impl FnMut(char) -> bool) {
         while predicate(self.first()) && !self.is_eof() {
+            self.bump();
+        }
+    }
+
+    fn eat_while_saving(&mut self, mut predicate: impl FnMut(char) -> bool, s: &mut String) {
+        while predicate(self.first()) && !self.is_eof() {
+            s.push(self.first());
             self.bump();
         }
     }

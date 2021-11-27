@@ -1,30 +1,27 @@
-pub struct Name {
-    value: String
-}
-
 pub enum Stmt {
+    Let(String, Expr),
     Expr(Expr),
-    Let(Name, Expr)
 }
 
 pub enum Expr {
     Factor(Factor),
-    Add(Factor, Factor),
-    Sub(Factor, Factor),
+    Add(Box<Factor>, Box<Expr>),
+    Sub(Box<Factor>, Box<Expr>),
 }
 
 pub enum Factor {
     Unary(Unary),
-    Multiply(Box<Unary>, Box<Unary>),
-    Divide(Box<Unary>, Box<Unary>),
+    Multiply(Box<Unary>, Box<Factor>),
+    Divide(Box<Unary>, Box<Factor>),
 }
 
 pub enum Unary {
-    Primary(Primary),
     Minus(Box<Unary>),
+    Primary(Primary),
 }
 
 pub enum Primary {
-    Literal,
-    Identifier(Name),
+    Literal(i32),
+    Identifier(String),
+    Grouping(Box<Expr>)
 }
